@@ -5,13 +5,22 @@ The BIC (Bound State in the Continuum) resonator produces sharp dips in the
 transmission spectrum whose position (λ₀) and quality factor (Q = λ₀/FWHM)
 shift with the local refractive index of the surrounding medium.
 
+All COMSOL files are simulations of the same sensor geometry in the same
+seawater-like medium (n ≈ 1.35).  Each file represents a different parametric
+sweep of the sensor design space:
+
 Data formats exported by COMSOL
 --------------------------------
-sweet_table.csv  – 3 columns: lambda(m), lambda0(µm), T
-bitter_table.csv – long format (pre-processed): TSB_nm, lambda_nm, T
-seawater_refined – long format (pre-processed): TSB_nm, lambda_nm, T, Tot
-umami_table.csv  – 4 columns: lambda(m), d(nm), lambda0(µm), T
-nenv_table.csv   – columns: lambda(m), n_env_0, lambda0(µm), T1…T4
+bic_spectrum_single.csv  – 3 columns: lambda(m), lambda0(µm), T
+                           Single reference BIC spectrum at fixed geometry.
+bic_tsb_sweep.csv        – long format: TSB_nm, lambda_nm, T
+                           Parametric sweep over translational symmetry break.
+seawater_refined.csv     – long format: TSB_nm, lambda_nm, T, Tot
+                           TSB sweep in the seawater reference medium.
+bic_displacement_sweep.csv – 4 columns: lambda(m), d(nm), lambda0(µm), T
+                           Parametric sweep over cube displacement d.
+bic_nenv_sweep.csv       – columns: lambda(m), n_env_0, lambda0(µm), T1…T4
+                           Sweep over environmental refractive index n_env.
 """
 
 import numpy as np
@@ -38,9 +47,9 @@ def _skip_comment_csv(filepath, ncols: int) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def load_sweet_table(filepath) -> pd.DataFrame:
+def load_single_spectrum(filepath) -> pd.DataFrame:
     """
-    Load sweet-compound COMSOL table (3 columns).
+    Load a single-geometry BIC spectrum (3-column COMSOL table).
 
     Returns DataFrame with columns: lambda_nm, T
     """
@@ -50,9 +59,9 @@ def load_sweet_table(filepath) -> pd.DataFrame:
     return df[["lambda_nm", "T"]].sort_values("lambda_nm").reset_index(drop=True)
 
 
-def load_tsb_table(filepath) -> pd.DataFrame:
+def load_tsb_sweep(filepath) -> pd.DataFrame:
     """
-    Load a long-format TSB-sweep CSV (bitter_table.csv or seawater_refined.csv).
+    Load a long-format TSB-sweep CSV (bic_tsb_sweep.csv or seawater_refined.csv).
 
     Expected columns: TSB_nm, lambda_nm, T  (plus optional extras, ignored).
 
@@ -65,9 +74,9 @@ def load_tsb_table(filepath) -> pd.DataFrame:
     return df[["TSB_nm", "lambda_nm", "T"]].dropna()
 
 
-def load_umami_table(filepath) -> pd.DataFrame:
+def load_displacement_sweep(filepath) -> pd.DataFrame:
     """
-    Load displacement-sweep COMSOL table (4 columns).
+    Load a cube-displacement parametric sweep (4-column COMSOL table).
 
     Returns DataFrame with columns: lambda_nm, d_nm, T
     """
@@ -77,9 +86,9 @@ def load_umami_table(filepath) -> pd.DataFrame:
     return df[["lambda_nm", "d_nm", "T"]].dropna()
 
 
-def load_nenv_table(filepath) -> pd.DataFrame:
+def load_nenv_sweep(filepath) -> pd.DataFrame:
     """
-    Load refractive-index-sweep COMSOL table (7 columns).
+    Load a refractive-index-environment sweep (7-column COMSOL table).
 
     Returns DataFrame with columns: lambda_nm, n_env, T
     (uses the first transmittance column only).
@@ -253,7 +262,9 @@ def sweep_q_vs_param(grouped: dict[str, tuple[np.ndarray, np.ndarray]],
     Parameters
     ----------
     grouped      : dict mapping param_value → (lam_nm, T_norm)
-    n_dips       : expected number of resonance dips per spectrum
+    n_dips       : expected number of resonance dips per spectrum.
+                   Using n_dips=2 enables dual-dip analysis for simultaneous
+                   temperature and analyte discrimination.
     min_prominence, min_distance_nm, half_win_nm : dip-finding / Q-extraction
 
     Returns

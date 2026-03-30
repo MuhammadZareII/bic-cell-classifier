@@ -27,7 +27,7 @@ CUBE_WIDTH_NM = 130    # Si cube width at 20 °C (nm)
 SUBSTRATE_NM = 150     # SiO₂ substrate thickness (nm)
 N_SI = 3.47            # Si refractive index at 20 °C
 N_SIO2 = 1.46          # SiO₂ refractive index at 20 °C
-N_ENV = 1.35           # seawater RI at 20 °C, 0.35 % salinity
+N_ENV = 1.35           # simulation medium RI at 20 °C (seawater-like, 0.35 % salinity)
 
 # Sensor wavelength sweep
 LAMBDA_S_NM = 655.0    # sweep start (nm)

@@ -15,7 +15,7 @@ The refractive index n(ν̃) is then obtained via the Kramers–Kronig relation:
 
 implemented as a discrete principal-value trapezoidal integral.
 
-Typical parameters for aqueous taste-compound spectra:
+Typical parameters for ATR-FTIR cell spectra (BPE/MPE):
   path_length_cm = 0.2   (2 mm transmission cell)
   n_inf          = 1.35  (water-like high-frequency limit)
 """

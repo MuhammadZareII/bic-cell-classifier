@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Generate all publication figures for the BIC taste-sensor project.
+Generate all publication figures for the BIC cell-classifier project.
 
 Usage
 -----
     python generate_figures.py
 
 Figures written to results/figures/:
-    fig1_kk_refractive_index.png     – K–K average n(ν̃) per taste class
+    fig1_kk_refractive_index.png     – K–K average n(ν̃) per cell type (BPE/MPE)
     fig2_discriminant_wavenumbers.png – between-class discriminant power
-    fig3_transmission_spectrum.png   – BIC resonance spectrum (sweet compound)
-    fig5_spectra_by_displacement.png – transmission vs displacement (umami)
+    fig3_transmission_spectrum.png   – BIC resonance spectrum (reference geometry)
+    fig5_spectra_by_displacement.png – transmission vs cube displacement
     fig6_q_vs_displacement.png       – Q-factor and λ₀ vs displacement
     fig7_classification.png          – confusion matrix of KK-based classifier
 """
@@ -29,7 +29,7 @@ from src.config import (
 )
 from src.kk import convert_dataframe, META_COLS
 from src.sensor import (
-    load_sweet_table, load_umami_table,
+    load_single_spectrum, load_displacement_sweep,
     normalize_spectrum, find_dips, extract_q, sweep_q_vs_param,
 )
 
@@ -68,10 +68,10 @@ def save(fig, name: str) -> None:
 
 
 # ===========================================================================
-# Figure 1 – K–K average refractive index per taste class
+# Figure 1 – K–K average refractive index per cell type
 # ===========================================================================
 def fig1_kk_refractive_index() -> None:
-    print("[1/7] K–K refractive index by class …")
+    print("[1/7] K–K refractive index by cell type …")
 
     df = pd.read_excel(DATA_DIR / "MOESM2_ESM-C.xlsx", sheet_name="Spectra_data")
     n_df = convert_dataframe(df, path_length_cm=PATH_LENGTH_CM, n_inf=N_INF)
@@ -97,8 +97,8 @@ def fig1_kk_refractive_index() -> None:
 
     ax.set_xlabel("Wavelength (nm)")
     ax.set_ylabel("Refractive index  $n(\\tilde{\\nu})$")
-    ax.set_title("Kramers–Kronig refractive-index spectra by taste class\n"
-                 "(mean ± 1 s.d.)")
+    ax.set_title("Kramers–Kronig refractive-index spectra by cell type\n"
+                 "(mean ± 1 s.d.;  BPE = benign,  MPE = malignant)")
     ax.legend(loc="upper right", fontsize=FONT_SIZE - 1)
     ax.xaxis.set_minor_locator(mticker.AutoMinorLocator())
     fig.tight_layout()
@@ -153,10 +153,10 @@ def fig2_discriminant_wavenumbers() -> None:
         ax1.axvline(wl_nm[idx], color="gray", linestyle="--",
                     linewidth=0.6, alpha=0.7)
     ax1.set_ylabel("ANOVA $F$-statistic")
-    ax1.set_title("Between-class discriminant power in the refractive-index domain")
+    ax1.set_title("Between-class discriminant power (BPE vs MPE) in the refractive-index domain")
     ax1.xaxis.set_minor_locator(mticker.AutoMinorLocator())
 
-    # Panel 2: mean RI per class (for reference)
+    # Panel 2: mean RI per cell type (for reference)
     grouped_means = n_df.groupby("Class")[spec_cols].mean()
     for i, cls in enumerate(sorted(classes)):
         ax2.plot(wl_nm, grouped_means.loc[cls].values,
@@ -172,12 +172,12 @@ def fig2_discriminant_wavenumbers() -> None:
 
 
 # ===========================================================================
-# Figure 3 – Transmission spectrum of sweet compound (sharp BIC resonances)
+# Figure 3 – BIC resonance spectrum at reference geometry
 # ===========================================================================
 def fig3_transmission_spectrum() -> None:
-    print("[3/7] Transmission spectrum (sweet compound) …")
+    print("[3/7] BIC resonance spectrum (reference geometry) …")
 
-    df = load_sweet_table(DATA_DIR / "sweet_table.csv")
+    df = load_single_spectrum(DATA_DIR / "bic_spectrum_single.csv")
     lam = df["lambda_nm"].values
     T = df["T"].values
     T_norm = normalize_spectrum(lam, T)
@@ -194,15 +194,13 @@ def fig3_transmission_spectrum() -> None:
             ax.plot(lam0, t_at_dip, "o",
                     markerfacecolor="none", markeredgecolor=PALETTE[1],
                     markeredgewidth=1.5, markersize=7, zorder=5)
-            # Simple text annotation (no arrow), offset slightly to the right
             ax.text(lam0 + 0.4, t_at_dip + 0.005,
                     f"Q={q:.0f}",
                     fontsize=FONT_SIZE - 1, va="bottom")
 
     ax.set_xlabel("$\\lambda$ (nm)")
     ax.set_ylabel("Normalized transmittance (a.u.)")
-    ax.set_title("Transmission spectrum (normalized)")
-    # Trim edges where the envelope normalisation overshoots slightly
+    ax.set_title("BIC resonance spectrum — reference geometry (normalized)")
     valid = (T_norm <= 1.005)
     ax.set_xlim(lam[valid][0], lam[valid][-1])
     ax.set_ylim(max(0, T_norm.min() - 0.02), 1.05)
@@ -212,15 +210,14 @@ def fig3_transmission_spectrum() -> None:
 
 
 # ===========================================================================
-# Figure 5 – Transmission spectra vs displacement (umami compound)
+# Figure 5 – Transmission spectra vs cube displacement
 # ===========================================================================
 def fig5_spectra_by_displacement() -> None:
-    print("[5/7] Spectra by displacement (umami) …")
+    print("[5/7] Spectra by cube displacement …")
 
-    df = load_umami_table(DATA_DIR / "umami_table.csv")
+    df = load_displacement_sweep(DATA_DIR / "bic_displacement_sweep.csv")
     d_vals = sorted(df["d_nm"].unique())
 
-    # Distinct named colours matching MATLAB default line order
     line_colors = ["#0072BD", "#D95319", "#EDB120",
                    "#7E2F8E", "#77AC30", "#4DBEEE"]
 
@@ -240,7 +237,7 @@ def fig5_spectra_by_displacement() -> None:
 
     ax.set_xlabel("$\\lambda$ (nm)")
     ax.set_ylabel("Normalized transmittance (a.u.)")
-    ax.set_title("Grouped spectra by displacement $d$ (normalized)")
+    ax.set_title("BIC spectra vs cube displacement $d$ (normalized)")
     ax.set_xlim(450, 750)
     ax.set_ylim(0, 1.2)
     ax.legend(loc="center right", fontsize=FONT_SIZE - 1)
@@ -250,17 +247,16 @@ def fig5_spectra_by_displacement() -> None:
 
 
 # ===========================================================================
-# Figure 6 – Q-factor and λ₀ vs displacement
+# Figure 6 – Q-factor and λ₀ vs cube displacement
 # ===========================================================================
 def fig6_q_vs_displacement() -> None:
     print("[6/7] Q vs displacement …")
 
-    df = load_umami_table(DATA_DIR / "umami_table.csv")
+    df = load_displacement_sweep(DATA_DIR / "bic_displacement_sweep.csv")
 
     grouped = {}
     for d in sorted(df["d_nm"].unique()):
         sub = df[df["d_nm"] == d].sort_values("lambda_nm")
-        # Restrict to BIC resonance band (avoids fixed absorption artefacts)
         mask = (sub["lambda_nm"] >= 550) & (sub["lambda_nm"] <= 680)
         sub = sub[mask]
         lam = sub["lambda_nm"].values
@@ -276,7 +272,7 @@ def fig6_q_vs_displacement() -> None:
                                half_win_nm=12.0)
 
     if metrics.empty or metrics["Q"].isna().all():
-        print("    (no dips extracted for umami data – skipping fig 6)")
+        print("    (no dips extracted – skipping fig 6)")
         return
 
     valid = metrics.dropna(subset=["Q", "lambda0_nm"])
@@ -305,7 +301,6 @@ def fig6_q_vs_displacement() -> None:
     ax_l.set_title("Resonance wavelength vs displacement")
     ax_l.xaxis.set_minor_locator(mticker.AutoMinorLocator())
 
-    # Sensitivity annotation (d λ₀ / d·d)
     if len(l_vals) >= 2:
         sens = (l_vals[-1] - l_vals[0]) / (d_vals_m[-1] - d_vals_m[0])
         ax_l.text(0.05, 0.95,
@@ -314,17 +309,17 @@ def fig6_q_vs_displacement() -> None:
                   fontsize=FONT_SIZE - 1,
                   bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="0.7"))
 
-    fig.suptitle("BIC sensor – resonance sensitivity to cube displacement",
+    fig.suptitle("BIC sensor — resonance sensitivity to cube displacement",
                  fontsize=FONT_SIZE + 1)
     fig.tight_layout()
     save(fig, "fig6_q_vs_displacement.png")
 
 
 # ===========================================================================
-# Figure 7 – Taste classification from K–K features
+# Figure 7 – Cell-type classification from K–K features
 # ===========================================================================
 def fig7_classification() -> None:
-    print("[7/7] Classification (K–K features) …")
+    print("[7/7] Cell-type classification (K–K features) …")
 
     try:
         from sklearn.pipeline import Pipeline
@@ -365,11 +360,11 @@ def fig7_classification() -> None:
     disp.plot(ax=ax, colorbar=True, cmap="Blues", values_format=".2f",
               im_kw={"vmin": 0, "vmax": 1})
     ax.set_title(
-        f"Taste-class classifier — confusion matrix\n"
+        f"Cell-type classifier (BPE vs MPE) — confusion matrix\n"
         f"(5-fold CV, PCA + SVM,  accuracy = {overall_acc:.1%})"
     )
-    ax.set_xlabel("Predicted class")
-    ax.set_ylabel("True class")
+    ax.set_xlabel("Predicted cell type")
+    ax.set_ylabel("True cell type")
     plt.setp(ax.get_xticklabels(), rotation=30, ha="right")
     fig.tight_layout()
     save(fig, "fig7_classification.png")
